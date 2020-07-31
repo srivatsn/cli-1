@@ -270,7 +270,7 @@ func Test_loginRun_Survey(t *testing.T) {
 		{
 			name: "already authenticated",
 			cfg: func(cfg config.Config) {
-				cfg.Set("github.com", "oauth_token", "ghi789")
+				_ = cfg.Set("github.com", "oauth_token", "ghi789")
 			},
 			httpStubs: func(reg *httpmock.Registry) {
 				reg.Register(httpmock.REST("GET", ""), scopesResponder("repo,read:org,"))
