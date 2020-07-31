@@ -166,6 +166,9 @@ func loginRun(opts *LoginOptions) error {
 		err := validateHostCfg(hostname, cfg)
 		if err == nil {
 			apiClient, err := clientFromCfg(hostname, cfg)
+			if err != nil {
+				return err
+			}
 
 			username, err := api.CurrentLoginName(apiClient, hostname)
 			if err != nil {
@@ -257,6 +260,9 @@ func loginRun(opts *LoginOptions) error {
 	fmt.Fprintf(opts.IO.ErrOut, "%s Configured git protocol\n", utils.GreenCheck())
 
 	apiClient, err := clientFromCfg(hostname, cfg)
+	if err != nil {
+		return err
+	}
 
 	username, err := api.CurrentLoginName(apiClient, hostname)
 	if err != nil {
