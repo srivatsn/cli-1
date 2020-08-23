@@ -63,6 +63,8 @@ func init() {
 	RootCmd.AddCommand(versionCmd)
 	RootCmd.SetVersionTemplate(versionOutput)
 
+	RootCmd.AddCommand(fooCmd)
+
 	RootCmd.PersistentFlags().Bool("help", false, "Show help for command")
 	RootCmd.Flags().Bool("version", false, "Show gh version")
 	// TODO:
@@ -209,6 +211,16 @@ var versionCmd = &cobra.Command{
 	Hidden: true,
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Print(versionOutput)
+	},
+}
+
+var fooCmd = &cobra.Command{
+	Use:    "foo",
+	Hidden: false,
+	Short:  "HelloWorldCommand",
+	Long:   "Hello world command",
+	Run: func(cmd *cobra.Command, args []string) {
+		fmt.Print("hello!!")
 	},
 }
 
