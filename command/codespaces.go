@@ -1,6 +1,8 @@
 package command
 
 import (
+	"fmt"
+
 	"github.com/MakeNowJust/heredoc"
 	"github.com/cli/cli/api"
 	"github.com/cli/cli/pkg/cmdutil"
@@ -12,6 +14,8 @@ func init() {
 	RootCmd.AddCommand(codespacesCmd)
 
 	codespacesCmd.AddCommand(codespacesListCmd)
+	codespacesCmd.AddCommand(codespacesSuspendCmd)
+	codespacesCmd.AddCommand(codespacesResumeCmd)
 }
 
 func codespacesList(cmd *cobra.Command, args []string) error {
@@ -60,6 +64,60 @@ func codespacesList(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
+func codespacesSuspend(cmd *cobra.Command, args []string) error {
+	ctx := contextForCommand(cmd)
+	apiClient, err := apiClientForContext(ctx)
+	if err != nil {
+		return err
+	}
+
+	if len(args) != 1 {
+		return fmt.Errorf("Expected exactly one argument")
+	}
+
+	codespaceName := args[0]
+
+	currentUser, err := api.CurrentLoginName(apiClient)
+	if err != nil {
+		return err
+	}
+
+	err = api.SuspendCodespace(apiClient, currentUser, codespaceName)
+	if err != nil {
+		return err
+	}
+
+	fmt.Println("Codespace", codespaceName, "successfully suspended.")
+	return nil
+}
+
+func codespacesResume(cmd *cobra.Command, args []string) error {
+	ctx := contextForCommand(cmd)
+	apiClient, err := apiClientForContext(ctx)
+	if err != nil {
+		return err
+	}
+
+	if len(args) != 1 {
+		return fmt.Errorf("Expected exactly one argument")
+	}
+
+	codespaceName := args[0]
+
+	currentUser, err := api.CurrentLoginName(apiClient)
+	if err != nil {
+		return err
+	}
+
+	err = api.StartCodespace(apiClient, currentUser, codespaceName)
+	if err != nil {
+		return err
+	}
+
+	fmt.Println("Codespace", codespaceName, "successfully resumed.")
+	return nil
+}
+
 func colorfuncForState(state string) func(string) string {
 	switch state {
 	case "Available":
@@ -90,4 +148,22 @@ var codespacesListCmd = &cobra.Command{
 	$ gh codespaces list
 	`),
 	RunE: codespacesList,
+}
+
+var codespacesSuspendCmd = &cobra.Command{
+	Use:   "suspend <codespacename>",
+	Short: "Suspend a codespace",
+	Example: heredoc.Doc(`
+	$ gh codespaces suspend <codespacename>
+	`),
+	RunE: codespacesSuspend,
+}
+
+var codespacesResumeCmd = &cobra.Command{
+	Use:   "resume <codespacename>",
+	Short: "Resume a codespace",
+	Example: heredoc.Doc(`
+	$ gh codespaces resume <codespacename>
+	`),
+	RunE: codespacesResume,
 }
