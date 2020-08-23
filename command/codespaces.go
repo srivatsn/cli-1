@@ -1,11 +1,10 @@
 package command
 
 import (
-	"fmt"
-
 	"github.com/MakeNowJust/heredoc"
 	"github.com/cli/cli/api"
 	"github.com/cli/cli/pkg/cmdutil"
+	"github.com/cli/cli/utils"
 	"github.com/spf13/cobra"
 )
 
@@ -32,6 +31,8 @@ func codespacesList(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	table := utils.NewTablePrinter(cmd.OutOrStdout())
+
 	for _, codespace := range response.Codespaces {
 		codespaceDetails, err := api.GetCodespaceDetails(apiClient, currentUser, codespace.Name)
 		if err != nil {
@@ -43,15 +44,31 @@ func codespacesList(cmd *cobra.Command, args []string) error {
 			hasUnpushedChanges = "Has unpushed changes"
 		}
 
-		fmt.Printf("%s\t%s\t%s\t%s\n",
-			codespace.Name,
-			codespaceDetails.Environment.State,
-			codespaceDetails.Environment.SkuDisplayName,
-			hasUnpushedChanges,
-		)
+		table.AddField(codespace.Name, nil, colorfuncForState(codespaceDetails.Environment.State))
+		table.AddField(codespaceDetails.Environment.State, nil, colorfuncForState(codespaceDetails.Environment.State))
+		table.AddField(codespaceDetails.Environment.SkuDisplayName, nil, nil)
+		table.AddField(codespaceDetails.Environment.Seed.Moniker, nil, utils.Blue)
+		table.AddField(hasUnpushedChanges, nil, utils.Red)
+		table.EndRow()
+	}
+
+	err = table.Render()
+	if err != nil {
+		return err
 	}
 
 	return nil
+}
+
+func colorfuncForState(state string) func(string) string {
+	switch state {
+	case "Available":
+		return utils.Green
+	case "Shutdown":
+		return utils.Gray
+	default:
+		return nil
+	}
 }
 
 var codespacesCmd = &cobra.Command{
