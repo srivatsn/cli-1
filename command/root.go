@@ -311,13 +311,13 @@ var apiClientForContext = func(ctx context.Context) (*api.Client, error) {
 			// update configuration in memory
 			token = newToken
 		} else {
-			fmt.Fprintln(os.Stderr, "Warning: gh now requires the `read:org` OAuth scope.")
-			fmt.Fprintln(os.Stderr, "Visit https://github.com/settings/tokens and edit your token to enable `read:org`")
-			if tokenFromEnv() {
-				fmt.Fprintln(os.Stderr, "or generate a new token for the GITHUB_TOKEN environment variable")
-			} else {
-				fmt.Fprintln(os.Stderr, "or generate a new token and paste it via `gh config set -h github.com oauth_token MYTOKEN`")
-			}
+			//fmt.Fprintln(os.Stderr, "Warning: gh now requires the `read:org` OAuth scope.")
+			//fmt.Fprintln(os.Stderr, "Visit https://github.com/settings/tokens and edit your token to enable `read:org`")
+			//if tokenFromEnv() {
+			// 	fmt.Fprintln(os.Stderr, "or generate a new token for the GITHUB_TOKEN environment variable")
+			// } else {
+			// 	fmt.Fprintln(os.Stderr, "or generate a new token and paste it via `gh config set -h github.com oauth_token MYTOKEN`")
+			// }
 		}
 		return nil
 	}
