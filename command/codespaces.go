@@ -27,29 +27,28 @@ func codespacesList(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	endpoint := fmt.Sprintf("vscs_internal/user/%s/codespaces", currentUser)
-
-	type Codespace struct {
-		Name     string `json:"name"`
-		GUID     string `json:"guid"`
-		State    string `json:"state"`
-		URL      string `json:"url"`
-		TokenURL string `json:"token_url"`
-	}
-
-	type Response struct {
-		Codespaces []Codespace `json:"codespaces"`
-	}
-
-	var response Response
-
-	err = apiClient.REST("GET", endpoint, nil, &response)
+	response, err := api.GetCodespaces(apiClient, currentUser)
 	if err != nil {
 		return err
 	}
 
-	for _, v := range response.Codespaces {
-		fmt.Println(v.Name)
+	for _, codespace := range response.Codespaces {
+		codespaceDetails, err := api.GetCodespaceDetails(apiClient, currentUser, codespace.Name)
+		if err != nil {
+			return err
+		}
+
+		hasUnpushedChanges := ""
+		if codespaceDetails.Environment.HasUnpushedChanges {
+			hasUnpushedChanges = "Has unpushed changes"
+		}
+
+		fmt.Printf("%s\t%s\t%s\t%s\n",
+			codespace.Name,
+			codespaceDetails.Environment.State,
+			codespaceDetails.Environment.SkuDisplayName,
+			hasUnpushedChanges,
+		)
 	}
 
 	return nil
