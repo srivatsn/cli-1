@@ -16,16 +16,26 @@ func init() {
 	codespacesCmd.AddCommand(codespacesListCmd)
 	codespacesCmd.AddCommand(codespacesSuspendCmd)
 	codespacesCmd.AddCommand(codespacesResumeCmd)
+	codespacesCmd.AddCommand(codespacesDeleteCmd)
 }
 
-func codespacesList(cmd *cobra.Command, args []string) error {
+func getAPIClientAndCurrentUser(cmd *cobra.Command) (*api.Client, string, error) {
 	ctx := contextForCommand(cmd)
 	apiClient, err := apiClientForContext(ctx)
 	if err != nil {
-		return err
+		return nil, "", err
 	}
 
 	currentUser, err := api.CurrentLoginName(apiClient)
+	if err != nil {
+		return nil, "", err
+	}
+
+	return apiClient, currentUser, nil
+}
+
+func codespacesList(cmd *cobra.Command, args []string) error {
+	apiClient, currentUser, err := getAPIClientAndCurrentUser(cmd)
 	if err != nil {
 		return err
 	}
@@ -65,8 +75,7 @@ func codespacesList(cmd *cobra.Command, args []string) error {
 }
 
 func codespacesSuspend(cmd *cobra.Command, args []string) error {
-	ctx := contextForCommand(cmd)
-	apiClient, err := apiClientForContext(ctx)
+	apiClient, currentUser, err := getAPIClientAndCurrentUser(cmd)
 	if err != nil {
 		return err
 	}
@@ -76,24 +85,18 @@ func codespacesSuspend(cmd *cobra.Command, args []string) error {
 	}
 
 	codespaceName := args[0]
-
-	currentUser, err := api.CurrentLoginName(apiClient)
-	if err != nil {
-		return err
-	}
 
 	err = api.SuspendCodespace(apiClient, currentUser, codespaceName)
 	if err != nil {
 		return err
 	}
 
-	fmt.Println("Codespace", codespaceName, "successfully suspended.")
+	fmt.Fprintf(cmd.OutOrStdout(), utils.Cyan("Codespace %s successfully suspended.\n"), codespaceName)
 	return nil
 }
 
 func codespacesResume(cmd *cobra.Command, args []string) error {
-	ctx := contextForCommand(cmd)
-	apiClient, err := apiClientForContext(ctx)
+	apiClient, currentUser, err := getAPIClientAndCurrentUser(cmd)
 	if err != nil {
 		return err
 	}
@@ -104,17 +107,33 @@ func codespacesResume(cmd *cobra.Command, args []string) error {
 
 	codespaceName := args[0]
 
-	currentUser, err := api.CurrentLoginName(apiClient)
-	if err != nil {
-		return err
-	}
-
 	err = api.StartCodespace(apiClient, currentUser, codespaceName)
 	if err != nil {
 		return err
 	}
 
-	fmt.Println("Codespace", codespaceName, "successfully resumed.")
+	fmt.Fprintf(cmd.OutOrStdout(), utils.Cyan("Codespace %s successfully resumed.\n"), codespaceName)
+	return nil
+}
+
+func codespacesDelete(cmd *cobra.Command, args []string) error {
+	apiClient, currentUser, err := getAPIClientAndCurrentUser(cmd)
+	if err != nil {
+		return err
+	}
+
+	if len(args) != 1 {
+		return fmt.Errorf("Expected exactly one argument")
+	}
+
+	codespaceName := args[0]
+
+	err = api.DeleteCodespace(apiClient, currentUser, codespaceName)
+	if err != nil {
+		return err
+	}
+
+	fmt.Fprintf(cmd.OutOrStdout(), utils.Cyan("Codespace %s successfully deleted.\n"), codespaceName)
 	return nil
 }
 
@@ -166,4 +185,13 @@ var codespacesResumeCmd = &cobra.Command{
 	$ gh codespaces resume <codespacename>
 	`),
 	RunE: codespacesResume,
+}
+
+var codespacesDeleteCmd = &cobra.Command{
+	Use:   "delete <codespacename>",
+	Short: "Delete a codespace",
+	Example: heredoc.Doc(`
+	$ gh codespaces delete <codespacename>
+	`),
+	RunE: codespacesDelete,
 }

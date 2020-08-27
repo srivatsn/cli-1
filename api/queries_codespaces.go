@@ -148,3 +148,15 @@ func SuspendCodespace(client *Client, currentUsername string, codespaceName stri
 
 	return nil
 }
+
+// DeleteCodespace deletes a codespace.
+func DeleteCodespace(client *Client, currentUsername string, codespaceName string) error {
+	endpoint := fmt.Sprintf("vscs_internal/user/%s/codespaces/%s", currentUsername, codespaceName)
+
+	err := client.REST("DELETE", endpoint, nil, nil)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
