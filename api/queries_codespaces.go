@@ -1,8 +1,13 @@
 package api
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/http"
+
+	"github.com/cli/cli/internal/ghrepo"
 )
 
 // Codespace represents a single codespace.
@@ -56,6 +61,27 @@ type CodespaceDetails struct {
 	URL         string
 	TokenURL    string `json:"token_url"`
 	Environment Environment
+}
+
+// CodespaceCreateRequest represents the request body for a codespace create request
+type CodespaceCreateRequest struct {
+	RepositoryID int    `json:"repository_id"`
+	Ref          string `json:"ref,omitempty"`
+	PullRequest  struct {
+		RepositoryID      int `json:"repository_id"`
+		PullRequestNumber int `json:"pull_request_number"`
+	} `json:"pull_request,omitempty"`
+	Location string `json:"location,omitempty"`
+	Sku      string `json:"sku,omitempty"`
+}
+
+// CodespaceCreateResponse is the response from a codespace create request
+type CodespaceCreateResponse struct {
+	GUID     string
+	Name     string
+	State    string
+	URL      string
+	TokenURL string `json:"token_url"`
 }
 
 // GetCodespaces gets the codespaces for the given user.
@@ -159,4 +185,83 @@ func DeleteCodespace(client *Client, currentUsername string, codespaceName strin
 	}
 
 	return nil
+}
+
+// CreateCodespace creates a codespace.
+func CreateCodespace(client *Client, currentUsername string, repoName string) (*string, error) {
+	endpoint := fmt.Sprintf("vscs_internal/user/%s/codespaces", currentUsername)
+
+	repoID, err := getRepoID(client, repoName)
+	if err != nil {
+		return nil, err
+	}
+
+	location, err := getCurrentLocation(client)
+	if err != nil {
+		return nil, err
+	}
+
+	body := &CodespaceCreateRequest{
+		RepositoryID: repoID,
+		Location:     location,
+		Sku:          "basicLinux",
+	}
+
+	requestByte, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	requestBody := bytes.NewReader(requestByte)
+
+	var response CodespaceCreateResponse
+	err = client.REST("POST", endpoint, requestBody, &response)
+	if err != nil {
+		return nil, err
+	}
+
+	return &response.Name, nil
+}
+
+func getRepoID(client *Client, repoName string) (int, error) {
+	repo, err := ghrepo.FromFullName(repoName)
+	if err != nil {
+		return -1, err
+	}
+
+	endpoint := fmt.Sprintf("repos/%s/%s", repo.RepoOwner(), repo.RepoName())
+	var response struct {
+		ID int
+	}
+	err = client.REST("GET", endpoint, nil, &response)
+	if err != nil {
+		return -1, err
+	}
+
+	return response.ID, err
+}
+
+func getCurrentLocation(client *Client) (string, error) {
+	endpoint := "https://online.visualstudio.com/api/v1/locations"
+	var response struct {
+		Current string
+	}
+
+	req, err := http.NewRequest("GET", endpoint, nil)
+	if err != nil {
+		return "", err
+	}
+
+	resp, err := client.http.Do(req)
+	if err != nil {
+		return "", err
+	}
+
+	b, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+
+	json.Unmarshal(b, &response)
+
+	return response.Current, nil
 }

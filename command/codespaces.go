@@ -17,6 +17,7 @@ func init() {
 	codespacesCmd.AddCommand(codespacesSuspendCmd)
 	codespacesCmd.AddCommand(codespacesResumeCmd)
 	codespacesCmd.AddCommand(codespacesDeleteCmd)
+	codespacesCmd.AddCommand(codespacesCreateCmd)
 }
 
 func getAPIClientAndCurrentUser(cmd *cobra.Command) (*api.Client, string, error) {
@@ -137,6 +138,27 @@ func codespacesDelete(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
+func codespacesCreate(cmd *cobra.Command, args []string) error {
+	apiClient, currentUser, err := getAPIClientAndCurrentUser(cmd)
+	if err != nil {
+		return err
+	}
+
+	if len(args) != 1 {
+		return fmt.Errorf("Expected exactly one argument")
+	}
+
+	repoName := args[0]
+
+	codespaceName, err := api.CreateCodespace(apiClient, currentUser, repoName)
+	if err != nil {
+		return err
+	}
+
+	fmt.Fprintf(cmd.OutOrStdout(), utils.Cyan("Codespace %s successfully created.\n"), codespaceName)
+	return nil
+}
+
 func colorfuncForState(state string) func(string) string {
 	switch state {
 	case "Available":
@@ -194,4 +216,13 @@ var codespacesDeleteCmd = &cobra.Command{
 	$ gh codespaces delete <codespacename>
 	`),
 	RunE: codespacesDelete,
+}
+
+var codespacesCreateCmd = &cobra.Command{
+	Use:   "create <repo>",
+	Short: "Create a codespace",
+	Example: heredoc.Doc(`
+	$ gh codespaces create <repo>
+	`),
+	RunE: codespacesCreate,
 }
