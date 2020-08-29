@@ -67,10 +67,10 @@ type CodespaceDetails struct {
 type CodespaceCreateRequest struct {
 	RepositoryID int    `json:"repository_id"`
 	Ref          string `json:"ref,omitempty"`
-	// PullRequest  struct {
-	// 	RepositoryID      int `json:"repository_id,omitempty"`
-	// 	PullRequestNumber int `json:"pull_request_number,omitempty"`
-	// } `json:"pull_request,omitempty"`
+	PullRequest  *struct {
+		RepositoryID      int `json:"repository_id,omitempty"`
+		PullRequestNumber int `json:"pull_request_number,omitempty"`
+	} `json:"pull_request,omitempty"`
 	Location string `json:"location,omitempty"`
 	Sku      string `json:"sku,omitempty"`
 }
