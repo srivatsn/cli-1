@@ -18,6 +18,9 @@ func init() {
 	codespacesCmd.AddCommand(codespacesResumeCmd)
 	codespacesCmd.AddCommand(codespacesDeleteCmd)
 	codespacesCmd.AddCommand(codespacesCreateCmd)
+	codespacesCreateCmd.Flags().StringP("ref", "r", "", "A ref in the repo from which the codespace will be created. The default branch of the repo is used otherwise")
+	codespacesCreateCmd.Flags().StringP("sku", "s", "", "The sku of the codespace (eg: basicLinux)")
+
 }
 
 func getAPIClientAndCurrentUser(cmd *cobra.Command) (*api.Client, string, error) {
@@ -81,12 +84,7 @@ func codespacesSuspend(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	if len(args) != 1 {
-		return fmt.Errorf("Expected exactly one argument")
-	}
-
 	codespaceName := args[0]
-
 	err = api.SuspendCodespace(apiClient, currentUser, codespaceName)
 	if err != nil {
 		return err
@@ -102,12 +100,7 @@ func codespacesResume(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	if len(args) != 1 {
-		return fmt.Errorf("Expected exactly one argument")
-	}
-
 	codespaceName := args[0]
-
 	err = api.StartCodespace(apiClient, currentUser, codespaceName)
 	if err != nil {
 		return err
@@ -123,12 +116,7 @@ func codespacesDelete(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	if len(args) != 1 {
-		return fmt.Errorf("Expected exactly one argument")
-	}
-
 	codespaceName := args[0]
-
 	err = api.DeleteCodespace(apiClient, currentUser, codespaceName)
 	if err != nil {
 		return err
@@ -144,13 +132,19 @@ func codespacesCreate(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	if len(args) != 1 {
-		return fmt.Errorf("Expected exactly one argument")
-	}
-
 	repoName := args[0]
 
-	codespaceName, err := api.CreateCodespace(apiClient, currentUser, repoName)
+	ref, err := cmd.Flags().GetString("ref")
+	if err != nil {
+		return err
+	}
+
+	sku, err := cmd.Flags().GetString("sku")
+	if err != nil {
+		return err
+	}
+
+	codespaceName, err := api.CreateCodespace(apiClient, currentUser, repoName, ref, sku)
 	if err != nil {
 		return err
 	}
@@ -197,6 +191,7 @@ var codespacesSuspendCmd = &cobra.Command{
 	Example: heredoc.Doc(`
 	$ gh codespaces suspend <codespacename>
 	`),
+	Args: cobra.ExactArgs(1),
 	RunE: codespacesSuspend,
 }
 
@@ -206,6 +201,7 @@ var codespacesResumeCmd = &cobra.Command{
 	Example: heredoc.Doc(`
 	$ gh codespaces resume <codespacename>
 	`),
+	Args: cobra.ExactArgs(1),
 	RunE: codespacesResume,
 }
 
@@ -215,6 +211,7 @@ var codespacesDeleteCmd = &cobra.Command{
 	Example: heredoc.Doc(`
 	$ gh codespaces delete <codespacename>
 	`),
+	Args: cobra.ExactArgs(1),
 	RunE: codespacesDelete,
 }
 
@@ -222,7 +219,8 @@ var codespacesCreateCmd = &cobra.Command{
 	Use:   "create <repo>",
 	Short: "Create a codespace",
 	Example: heredoc.Doc(`
-	$ gh codespaces create <repo>
+	$ gh codespaces create cli/cli
 	`),
+	Args: cobra.ExactArgs(1),
 	RunE: codespacesCreate,
 }

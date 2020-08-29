@@ -67,10 +67,10 @@ type CodespaceDetails struct {
 type CodespaceCreateRequest struct {
 	RepositoryID int    `json:"repository_id"`
 	Ref          string `json:"ref,omitempty"`
-	PullRequest  struct {
-		RepositoryID      int `json:"repository_id"`
-		PullRequestNumber int `json:"pull_request_number"`
-	} `json:"pull_request,omitempty"`
+	// PullRequest  struct {
+	// 	RepositoryID      int `json:"repository_id,omitempty"`
+	// 	PullRequestNumber int `json:"pull_request_number,omitempty"`
+	// } `json:"pull_request,omitempty"`
 	Location string `json:"location,omitempty"`
 	Sku      string `json:"sku,omitempty"`
 }
@@ -188,56 +188,65 @@ func DeleteCodespace(client *Client, currentUsername string, codespaceName strin
 }
 
 // CreateCodespace creates a codespace.
-func CreateCodespace(client *Client, currentUsername string, repoName string) (*string, error) {
+func CreateCodespace(client *Client, currentUsername string, repoName string, ref string, sku string) (string, error) {
 	endpoint := fmt.Sprintf("vscs_internal/user/%s/codespaces", currentUsername)
 
-	repoID, err := getRepoID(client, repoName)
+	repoID, defaultBranch, err := getRepoDetails(client, repoName)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 
 	location, err := getCurrentLocation(client)
 	if err != nil {
-		return nil, err
+		return "", err
+	}
+
+	if ref == "" {
+		ref = defaultBranch
 	}
 
 	body := &CodespaceCreateRequest{
 		RepositoryID: repoID,
+		Ref:          ref,
 		Location:     location,
-		Sku:          "basicLinux",
+	}
+
+	if sku != "" {
+		body.Sku = sku
 	}
 
 	requestByte, err := json.Marshal(body)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 	requestBody := bytes.NewReader(requestByte)
 
 	var response CodespaceCreateResponse
 	err = client.REST("POST", endpoint, requestBody, &response)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 
-	return &response.Name, nil
+	return response.Name, nil
 }
 
-func getRepoID(client *Client, repoName string) (int, error) {
+func getRepoDetails(client *Client, repoName string) (int, string, error) {
 	repo, err := ghrepo.FromFullName(repoName)
 	if err != nil {
-		return -1, err
+		return -1, "", err
 	}
 
 	endpoint := fmt.Sprintf("repos/%s/%s", repo.RepoOwner(), repo.RepoName())
 	var response struct {
-		ID int
+		ID            int
+		DefaultBranch string `json:"default_branch"`
 	}
 	err = client.REST("GET", endpoint, nil, &response)
 	if err != nil {
-		return -1, err
+		return -1, "", err
 	}
 
-	return response.ID, err
+	return response.ID, response.DefaultBranch, err
 }
 
 func getCurrentLocation(client *Client) (string, error) {
