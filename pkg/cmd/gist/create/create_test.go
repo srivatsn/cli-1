@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/cli/cli/internal/run"
+	"github.com/cli/cli/pkg/cmd/gist/shared"
 	"github.com/cli/cli/pkg/cmdutil"
 	"github.com/cli/cli/pkg/httpmock"
 	"github.com/cli/cli/pkg/iostreams"
@@ -21,13 +23,33 @@ const (
 
 func Test_processFiles(t *testing.T) {
 	fakeStdin := strings.NewReader("hey cool how is it going")
-	files, err := processFiles(ioutil.NopCloser(fakeStdin), []string{"-"})
+	files, err := processFiles(ioutil.NopCloser(fakeStdin), "", []string{"-"})
 	if err != nil {
 		t.Fatalf("unexpected error processing files: %s", err)
 	}
 
 	assert.Equal(t, 1, len(files))
-	assert.Equal(t, "hey cool how is it going", files["gistfile0.txt"])
+	assert.Equal(t, "hey cool how is it going", files["gistfile0.txt"].Content)
+}
+
+func Test_guessGistName_stdin(t *testing.T) {
+	files := map[string]*shared.GistFile{
+		"gistfile0.txt": {Content: "sample content"},
+	}
+
+	gistName := guessGistName(files)
+	assert.Equal(t, "", gistName)
+}
+
+func Test_guessGistName_userFiles(t *testing.T) {
+	files := map[string]*shared.GistFile{
+		"fig.txt":       {Content: "I am a fig"},
+		"apple.txt":     {Content: "I am an apple"},
+		"gistfile0.txt": {Content: "sample content"},
+	}
+
+	gistName := guessGistName(files)
+	assert.Equal(t, "apple.txt", gistName)
 }
 
 func TestNewCmdCreate(t *testing.T) {
@@ -157,10 +179,12 @@ func Test_createRun(t *testing.T) {
 				Filenames: []string{fixtureFile},
 			},
 			wantOut:    "https://gist.github.com/aa5a315d61ae9438b18d\n",
-			wantStderr: "- Creating gist...\n✓ Created gist\n",
+			wantStderr: "- Creating gist fixture.txt\n✓ Created gist fixture.txt\n",
 			wantErr:    false,
 			wantParams: map[string]interface{}{
-				"public": true,
+				"description": "",
+				"updated_at":  "0001-01-01T00:00:00Z",
+				"public":      true,
 				"files": map[string]interface{}{
 					"fixture.txt": map[string]interface{}{
 						"content": "{}",
@@ -175,10 +199,12 @@ func Test_createRun(t *testing.T) {
 				Filenames:   []string{fixtureFile},
 			},
 			wantOut:    "https://gist.github.com/aa5a315d61ae9438b18d\n",
-			wantStderr: "- Creating gist...\n✓ Created gist\n",
+			wantStderr: "- Creating gist fixture.txt\n✓ Created gist fixture.txt\n",
 			wantErr:    false,
 			wantParams: map[string]interface{}{
 				"description": "an incredibly interesting gist",
+				"updated_at":  "0001-01-01T00:00:00Z",
+				"public":      false,
 				"files": map[string]interface{}{
 					"fixture.txt": map[string]interface{}{
 						"content": "{}",
@@ -193,9 +219,12 @@ func Test_createRun(t *testing.T) {
 			},
 			stdin:      "cool stdin content",
 			wantOut:    "https://gist.github.com/aa5a315d61ae9438b18d\n",
-			wantStderr: "- Creating gist...\n✓ Created gist\n",
+			wantStderr: "- Creating gist with multiple files\n✓ Created gist fixture.txt\n",
 			wantErr:    false,
 			wantParams: map[string]interface{}{
+				"description": "",
+				"updated_at":  "0001-01-01T00:00:00Z",
+				"public":      false,
 				"files": map[string]interface{}{
 					"fixture.txt": map[string]interface{}{
 						"content": "{}",
@@ -216,9 +245,32 @@ func Test_createRun(t *testing.T) {
 			wantStderr: "- Creating gist...\n✓ Created gist\n",
 			wantErr:    false,
 			wantParams: map[string]interface{}{
+				"description": "",
+				"updated_at":  "0001-01-01T00:00:00Z",
+				"public":      false,
 				"files": map[string]interface{}{
 					"gistfile0.txt": map[string]interface{}{
 						"content": "cool stdin content",
+					},
+				},
+			},
+		},
+		{
+			name: "web arg",
+			opts: &CreateOptions{
+				WebMode:   true,
+				Filenames: []string{fixtureFile},
+			},
+			wantOut:    "Opening gist.github.com/aa5a315d61ae9438b18d in your browser.\n",
+			wantStderr: "- Creating gist fixture.txt\n✓ Created gist fixture.txt\n",
+			wantErr:    false,
+			wantParams: map[string]interface{}{
+				"description": "",
+				"updated_at":  "0001-01-01T00:00:00Z",
+				"public":      false,
+				"files": map[string]interface{}{
+					"fixture.txt": map[string]interface{}{
+						"content": "{}",
 					},
 				},
 			},
@@ -238,6 +290,12 @@ func Test_createRun(t *testing.T) {
 
 		io, stdin, stdout, stderr := iostreams.Test()
 		tt.opts.IO = io
+
+		cs, teardown := run.Stub()
+		defer teardown(t)
+		if tt.opts.WebMode {
+			cs.Register(`https://gist\.github\.com/aa5a315d61ae9438b18d$`, 0, "")
+		}
 
 		t.Run(tt.name, func(t *testing.T) {
 			stdin.WriteString(tt.stdin)

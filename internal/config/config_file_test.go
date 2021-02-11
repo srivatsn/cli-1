@@ -2,21 +2,13 @@ package config
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
-	"reflect"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/yaml.v3"
 )
-
-func eq(t *testing.T, got interface{}, expected interface{}) {
-	t.Helper()
-	if !reflect.DeepEqual(got, expected) {
-		t.Errorf("expected: %v, got: %v", expected, got)
-	}
-}
 
 func Test_parseConfig(t *testing.T) {
 	defer StubConfig(`---
@@ -25,14 +17,14 @@ hosts:
     user: monalisa
     oauth_token: OTOKEN
 `, "")()
-	config, err := ParseConfig("config.yml")
-	eq(t, err, nil)
+	config, err := parseConfig("config.yml")
+	assert.NoError(t, err)
 	user, err := config.Get("github.com", "user")
-	eq(t, err, nil)
-	eq(t, user, "monalisa")
+	assert.NoError(t, err)
+	assert.Equal(t, "monalisa", user)
 	token, err := config.Get("github.com", "oauth_token")
-	eq(t, err, nil)
-	eq(t, token, "OTOKEN")
+	assert.NoError(t, err)
+	assert.Equal(t, "OTOKEN", token)
 }
 
 func Test_parseConfig_multipleHosts(t *testing.T) {
@@ -45,14 +37,14 @@ hosts:
     user: monalisa
     oauth_token: OTOKEN
 `, "")()
-	config, err := ParseConfig("config.yml")
-	eq(t, err, nil)
+	config, err := parseConfig("config.yml")
+	assert.NoError(t, err)
 	user, err := config.Get("github.com", "user")
-	eq(t, err, nil)
-	eq(t, user, "monalisa")
+	assert.NoError(t, err)
+	assert.Equal(t, "monalisa", user)
 	token, err := config.Get("github.com", "oauth_token")
-	eq(t, err, nil)
-	eq(t, token, "OTOKEN")
+	assert.NoError(t, err)
+	assert.Equal(t, "OTOKEN", token)
 }
 
 func Test_parseConfig_hostsFile(t *testing.T) {
@@ -61,30 +53,42 @@ github.com:
   user: monalisa
   oauth_token: OTOKEN
 `)()
-	config, err := ParseConfig("config.yml")
-	eq(t, err, nil)
+	config, err := parseConfig("config.yml")
+	assert.NoError(t, err)
 	user, err := config.Get("github.com", "user")
-	eq(t, err, nil)
-	eq(t, user, "monalisa")
+	assert.NoError(t, err)
+	assert.Equal(t, "monalisa", user)
 	token, err := config.Get("github.com", "oauth_token")
-	eq(t, err, nil)
-	eq(t, token, "OTOKEN")
+	assert.NoError(t, err)
+	assert.Equal(t, "OTOKEN", token)
 }
 
-func Test_parseConfig_notFound(t *testing.T) {
+func Test_parseConfig_hostFallback(t *testing.T) {
 	defer StubConfig(`---
-hosts:
-  example.com:
+git_protocol: ssh
+`, `---
+github.com:
+    user: monalisa
+    oauth_token: OTOKEN
+example.com:
     user: wronguser
     oauth_token: NOTTHIS
-`, "")()
-	config, err := ParseConfig("config.yml")
-	eq(t, err, nil)
-	_, err = config.Get("github.com", "user")
-	eq(t, err, &NotFoundError{errors.New(`could not find config entry for "github.com"`)})
+    git_protocol: https
+`)()
+	config, err := parseConfig("config.yml")
+	assert.NoError(t, err)
+	val, err := config.Get("example.com", "git_protocol")
+	assert.NoError(t, err)
+	assert.Equal(t, "https", val)
+	val, err = config.Get("github.com", "git_protocol")
+	assert.NoError(t, err)
+	assert.Equal(t, "ssh", val)
+	val, err = config.Get("nonexistent.io", "git_protocol")
+	assert.NoError(t, err)
+	assert.Equal(t, "ssh", val)
 }
 
-func Test_ParseConfig_migrateConfig(t *testing.T) {
+func Test_parseConfig_migrateConfig(t *testing.T) {
 	defer StubConfig(`---
 github.com:
   - user: keiyuri
@@ -96,17 +100,17 @@ github.com:
 	defer StubWriteConfig(&mainBuf, &hostsBuf)()
 	defer StubBackupConfig()()
 
-	_, err := ParseConfig("config.yml")
-	assert.Nil(t, err)
+	_, err := parseConfig("config.yml")
+	assert.NoError(t, err)
 
-	expectedMain := "# What protocol to use when performing git operations. Supported values: ssh, https\ngit_protocol: https\n# What editor gh should run when creating issues, pull requests, etc. If blank, will refer to environment.\neditor:\n# Aliases allow you to create nicknames for gh commands\naliases:\n    co: pr checkout\n"
 	expectedHosts := `github.com:
     user: keiyuri
     oauth_token: "123456"
 `
 
-	assert.Equal(t, expectedMain, mainBuf.String())
 	assert.Equal(t, expectedHosts, hostsBuf.String())
+	assert.NotContains(t, mainBuf.String(), "github.com")
+	assert.NotContains(t, mainBuf.String(), "oauth_token")
 }
 
 func Test_parseConfigFile(t *testing.T) {
@@ -140,6 +144,26 @@ func Test_parseConfigFile(t *testing.T) {
 			}
 			assert.Equal(t, yaml.MappingNode, yamlRoot.Content[0].Kind)
 			assert.Equal(t, 0, len(yamlRoot.Content[0].Content))
+		})
+	}
+}
+
+func Test_ConfigDir(t *testing.T) {
+	tests := []struct {
+		envVar string
+		want   string
+	}{
+		{"/tmp/gh", ".tmp.gh"},
+		{"", ".config.gh"},
+	}
+
+	for _, tt := range tests {
+		t.Run(fmt.Sprintf("envVar: %q", tt.envVar), func(t *testing.T) {
+			if tt.envVar != "" {
+				os.Setenv(GH_CONFIG_DIR, tt.envVar)
+				defer os.Unsetenv(GH_CONFIG_DIR)
+			}
+			assert.Regexp(t, tt.want, ConfigDir())
 		})
 	}
 }

@@ -6,12 +6,18 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/cli/safeexec"
 	"github.com/google/shlex"
 )
 
+// BrowserEnv simply returns the $BROWSER environment variable
+func FromEnv() string {
+	return os.Getenv("BROWSER")
+}
+
 // Command produces an exec.Cmd respecting runtime.GOOS and $BROWSER environment variable
 func Command(url string) (*exec.Cmd, error) {
-	launcher := os.Getenv("BROWSER")
+	launcher := FromEnv()
 	if launcher != "" {
 		return FromLauncher(launcher, url)
 	}
@@ -20,20 +26,21 @@ func Command(url string) (*exec.Cmd, error) {
 
 // ForOS produces an exec.Cmd to open the web browser for different OS
 func ForOS(goos, url string) *exec.Cmd {
+	exe := "open"
 	var args []string
 	switch goos {
 	case "darwin":
-		args = []string{"open"}
+		args = append(args, url)
 	case "windows":
-		args = []string{"cmd", "/c", "start"}
+		exe, _ = lookPath("cmd")
 		r := strings.NewReplacer("&", "^&")
-		url = r.Replace(url)
+		args = append(args, "/c", "start", r.Replace(url))
 	default:
-		args = []string{"xdg-open"}
+		exe = linuxExe()
+		args = append(args, url)
 	}
 
-	args = append(args, url)
-	cmd := exec.Command(args[0], args[1:]...)
+	cmd := exec.Command(exe, args...)
 	cmd.Stderr = os.Stderr
 	return cmd
 }
@@ -45,8 +52,29 @@ func FromLauncher(launcher, url string) (*exec.Cmd, error) {
 		return nil, err
 	}
 
+	exe, err := lookPath(args[0])
+	if err != nil {
+		return nil, err
+	}
+
 	args = append(args, url)
-	cmd := exec.Command(args[0], args[1:]...)
+	cmd := exec.Command(exe, args[1:]...)
 	cmd.Stderr = os.Stderr
 	return cmd, nil
 }
+
+func linuxExe() string {
+	exe := "xdg-open"
+
+	_, err := lookPath(exe)
+	if err != nil {
+		_, err := lookPath("wslview")
+		if err == nil {
+			exe = "wslview"
+		}
+	}
+
+	return exe
+}
+
+var lookPath = safeexec.LookPath
