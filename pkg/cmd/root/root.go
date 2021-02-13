@@ -10,6 +10,7 @@ import (
 	aliasCmd "github.com/cli/cli/pkg/cmd/alias"
 	apiCmd "github.com/cli/cli/pkg/cmd/api"
 	authCmd "github.com/cli/cli/pkg/cmd/auth"
+	codespacesCmd "github.com/cli/cli/pkg/cmd/codespaces"
 	completionCmd "github.com/cli/cli/pkg/cmd/completion"
 	configCmd "github.com/cli/cli/pkg/cmd/config"
 	"github.com/cli/cli/pkg/cmd/factory"
@@ -78,6 +79,7 @@ func NewCmdRoot(f *cmdutil.Factory, version, buildDate string) *cobra.Command {
 	cmd.AddCommand(completionCmd.NewCmdCompletion(f.IOStreams))
 	cmd.AddCommand(secretCmd.NewCmdSecret(f))
 	cmd.AddCommand(sshKeyCmd.NewCmdSSHKey(f))
+	cmd.AddCommand(codespacesCmd.NewCmdCodespaces(f))
 
 	// the `api` command should not inherit any extra HTTP headers
 	bareHTTPCmdFactory := *f

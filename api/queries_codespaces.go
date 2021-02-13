@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"net/http"
 
+	"github.com/cli/cli/internal/ghinstance"
 	"github.com/cli/cli/internal/ghrepo"
 )
 
@@ -89,7 +90,7 @@ func GetCodespaces(client *Client, currentUsername string) (*Codespaces, error) 
 	endpoint := fmt.Sprintf("vscs_internal/user/%s/codespaces", currentUsername)
 
 	var response Codespaces
-	err := client.REST("GET", endpoint, nil, &response)
+	err := client.REST(ghinstance.OverridableDefault(), "GET", endpoint, nil, &response)
 	if err != nil {
 		return nil, err
 	}
@@ -102,7 +103,7 @@ func GetCodespaceDetails(client *Client, currentUsername string, codespaceName s
 	endpoint := fmt.Sprintf("vscs_internal/user/%s/codespaces/%s", currentUsername, codespaceName)
 
 	var details CodespaceDetails
-	err := client.REST("GET", endpoint, nil, &details)
+	err := client.REST(ghinstance.OverridableDefault(), "GET", endpoint, nil, &details)
 	if err != nil {
 		return nil, err
 	}
@@ -117,7 +118,7 @@ func GetCodespaceToken(client *Client, currentUsername string, codespaceName str
 	var response struct {
 		Token string
 	}
-	err := client.REST("POST", endpoint, nil, &response)
+	err := client.REST(ghinstance.OverridableDefault(), "POST", endpoint, nil, &response)
 	if err != nil {
 		return nil, err
 	}
@@ -134,7 +135,7 @@ func StartCodespace(client *Client, currentUsername string, codespaceName string
 
 	endpoint := fmt.Sprintf("vscs_internal/proxy/environments/%s/start", codespace.Environment.ID)
 	var response Environment
-	err = client.REST("POST", endpoint, nil, &response)
+	err = client.REST(ghinstance.OverridableDefault(), "POST", endpoint, nil, &response)
 	if err != nil {
 		return err
 	}
@@ -169,7 +170,7 @@ func SuspendCodespace(client *Client, currentUsername string, codespaceName stri
 
 	success := response.StatusCode >= 200 && response.StatusCode < 300
 	if !success {
-		return handleHTTPError(response)
+		return HandleHTTPError(response)
 	}
 
 	return nil
@@ -179,7 +180,7 @@ func SuspendCodespace(client *Client, currentUsername string, codespaceName stri
 func DeleteCodespace(client *Client, currentUsername string, codespaceName string) error {
 	endpoint := fmt.Sprintf("vscs_internal/user/%s/codespaces/%s", currentUsername, codespaceName)
 
-	err := client.REST("DELETE", endpoint, nil, nil)
+	err := client.REST(ghinstance.OverridableDefault(), "DELETE", endpoint, nil, nil)
 	if err != nil {
 		return err
 	}
@@ -222,7 +223,7 @@ func CreateCodespace(client *Client, currentUsername string, repoName string, re
 	requestBody := bytes.NewReader(requestByte)
 
 	var response CodespaceCreateResponse
-	err = client.REST("POST", endpoint, requestBody, &response)
+	err = client.REST(ghinstance.OverridableDefault(), "POST", endpoint, requestBody, &response)
 	if err != nil {
 		return "", err
 	}
@@ -241,7 +242,7 @@ func getRepoDetails(client *Client, repoName string) (int, string, error) {
 		ID            int
 		DefaultBranch string `json:"default_branch"`
 	}
-	err = client.REST("GET", endpoint, nil, &response)
+	err = client.REST(ghinstance.OverridableDefault(), "GET", endpoint, nil, &response)
 	if err != nil {
 		return -1, "", err
 	}
