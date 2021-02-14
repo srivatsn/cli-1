@@ -9,6 +9,7 @@ import (
 	cmdDelete "github.com/cli/cli/pkg/cmd/codespaces/delete"
 	cmdList "github.com/cli/cli/pkg/cmd/codespaces/list"
 	cmdResume "github.com/cli/cli/pkg/cmd/codespaces/resume"
+	cmdSkus "github.com/cli/cli/pkg/cmd/codespaces/skus"
 	cmdSuspend "github.com/cli/cli/pkg/cmd/codespaces/suspend"
 )
 
@@ -29,6 +30,7 @@ func NewCmdCodespaces(f *cmdutil.Factory) *cobra.Command {
 	codespacesCmd.AddCommand(cmdResume.NewResumeCmd(f))
 	codespacesCmd.AddCommand(cmdDelete.NewDeleteCmd(f))
 	codespacesCmd.AddCommand(cmdCreate.NewCreateCmd(f))
+	codespacesCmd.AddCommand(cmdSkus.NewSkusCmd(f))
 
 	return codespacesCmd
 }

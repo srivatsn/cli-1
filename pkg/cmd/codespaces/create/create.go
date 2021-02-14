@@ -40,7 +40,7 @@ func NewCreateCmd(f *cmdutil.Factory) *cobra.Command {
 			opts.RepoRef, _ = cmd.Flags().GetString("ref")
 			opts.Sku, _ = cmd.Flags().GetString("sku")
 
-			return createCodespace(opts, cmd, args)
+			return createCodespace(opts)
 		},
 	}
 	codespacesCreateCmd.Flags().StringP("ref", "r", "", "A ref in the repo from which the codespace will be created. The default branch of the repo is used otherwise")
@@ -49,7 +49,7 @@ func NewCreateCmd(f *cmdutil.Factory) *cobra.Command {
 	return codespacesCreateCmd
 }
 
-func createCodespace(opts *CreateOptions, cmd *cobra.Command, args []string) error {
+func createCodespace(opts *CreateOptions) error {
 	httpClient, err := opts.HTTPClient()
 	if err != nil {
 		return err

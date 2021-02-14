@@ -85,6 +85,18 @@ type CodespaceCreateResponse struct {
 	TokenURL string `json:"token_url"`
 }
 
+// Sku represents the details of a Codespaces sku
+type Sku struct {
+	Name            string `json:"name"`
+	DisplayName     string `json:"display_name"`
+	OperationSystem string `json:"operating_system"`
+}
+
+// SkuDetailsResponse is the response from a codespaces skus request.
+type SkuDetailsResponse struct {
+	Skus []Sku `json:"skus"`
+}
+
 // GetCodespaces gets the codespaces for the given user.
 func GetCodespaces(client *Client, currentUsername string) (*Codespaces, error) {
 	endpoint := fmt.Sprintf("vscs_internal/user/%s/codespaces", currentUsername)
@@ -274,4 +286,17 @@ func getCurrentLocation(client *Client) (string, error) {
 	json.Unmarshal(b, &response)
 
 	return response.Current, nil
+}
+
+// ListSkus lists all the skus available for the given user
+func ListSkus(client *Client, currentUsername string) ([]Sku, error) {
+	endpoint := fmt.Sprintf("vscs_internal/user/%s/skus", currentUsername)
+
+	var details SkuDetailsResponse
+	err := client.REST(ghinstance.OverridableDefault(), "GET", endpoint, nil, &details)
+	if err != nil {
+		return nil, err
+	}
+
+	return details.Skus, nil
 }
